@@ -1,0 +1,14 @@
+[package]
+name = "gg"
+version = "0.1.0"
+edition = "2024"
+description = "A CLI git UI inspired by jj"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+git2 = "0.20"
+colored = "3"
+chrono = "0.4"
+anyhow = "1"
+openssl = { version = "0.10", features = ["vendored"] }
+tempfile = "3"
