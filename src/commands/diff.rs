@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::Colorize;
 use git2::DiffOptions;
 
-pub fn run(paths: &[String], staged: &[bool], simple: bool) -> Result<()> {
+pub fn run(paths: &[String], _staged: &bool, simple: bool) -> Result<()> {
     let repo = crate::repo::open()?;
 
     let head_tree = match repo.head() {

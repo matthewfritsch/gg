@@ -1,6 +1,7 @@
 use anyhow::Result;
 use colored::Colorize;
 use git2::StatusOptions;
+use std::collections::{BTreeMap, HashSet};
 
 pub fn run(simple: bool) -> Result<()> {
     let repo = crate::repo::open()?;
@@ -41,6 +42,10 @@ pub fn run(simple: bool) -> Result<()> {
             deleted.push(path);
         }
     }
+
+    let non_new = vec![&modified, &deleted, &renamed];
+    let added = collapse_new_dirs(&added, &non_new);
+    let untracked = collapse_new_dirs(&untracked, &non_new);
 
     if simple {
         for f in &modified {
@@ -93,4 +98,44 @@ pub fn run(simple: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Collapse paths that live in entirely-new directories into a single entry.
+/// A directory is "entirely new" if no file under it appears in `non_new_paths`.
+fn collapse_new_dirs(paths: &[String], non_new_paths: &[&Vec<String>]) -> Vec<String> {
+    if paths.len() < 2 {
+        return paths.to_vec();
+    }
+
+    let non_new: HashSet<&str> = non_new_paths
+        .iter()
+        .flat_map(|v| v.iter())
+        .map(|s| s.as_str())
+        .collect();
+
+    // Group paths by parent directory
+    let mut dir_files: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut top_level = Vec::new();
+    for path in paths {
+        match path.rfind('/') {
+            Some(pos) => dir_files.entry(&path[..pos]).or_default().push(path),
+            None => top_level.push(path.clone()),
+        }
+    }
+
+    let mut result = top_level;
+
+    for (dir, files) in &dir_files {
+        let prefix = format!("{dir}/");
+        let has_non_new = non_new.iter().any(|p| p.starts_with(&prefix));
+
+        if files.len() >= 2 && !has_non_new {
+            result.push(format!("{dir}/ ({} files)", files.len()));
+        } else {
+            result.extend(files.iter().map(|f| f.to_string()));
+        }
+    }
+
+    result.sort();
+    result
 }
